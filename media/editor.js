@@ -125,7 +125,6 @@
 
         autoResize();
         updateLineNumbers();
-        scheduleDirectionDetection();
     }
 
     // Find the minimal {start, end, text} such that
@@ -321,30 +320,6 @@
             .replace(/&/g, '&amp;')
             .replace(/</g, '&lt;')
             .replace(/>/g, '&gt;');
-    }
-
-    // Detect RTL/LTR content and adjust accordingly
-    function detectTextDirection() {
-        const text = editor.value;
-        const rtlChars = /[\u0590-\u05FF\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF\uFB50-\uFDFF\uFE70-\uFEFF]/;
-        const ltrChars = /[a-zA-Z]/;
-
-        const rtlCount = (text.match(rtlChars) || []).length;
-        const ltrCount = (text.match(ltrChars) || []).length;
-
-        if (rtlCount > ltrCount && editor.style.direction !== 'rtl') {
-            editor.style.direction = 'rtl';
-            editor.style.textAlign = 'right';
-        } else if (ltrCount > rtlCount && editor.style.direction !== 'ltr') {
-            editor.style.direction = 'ltr';
-            editor.style.textAlign = 'left';
-        }
-    }
-
-    function scheduleDirectionDetection() {
-        // Debounce the direction detection
-        clearTimeout(window.directionTimeout);
-        window.directionTimeout = setTimeout(detectTextDirection, 500);
     }
 
     function adjustFontSize(delta) {
