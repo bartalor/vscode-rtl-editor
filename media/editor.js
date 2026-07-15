@@ -11,6 +11,10 @@
     const notificationDismiss = document.getElementById('notification-dismiss');
     const lineNumbers = document.getElementById('line-numbers');
     const lineMirror = document.getElementById('line-mirror');
+    const diffGutter = document.getElementById('diff-gutter');
+
+    // Latest diff hunks from the extension; re-applied whenever we re-measure lines.
+    let currentHunks = [];
 
     // lastKnown mirrors the document content as understood by the extension.
     // Every webview-originated edit updates it optimistically before send;
@@ -23,10 +27,16 @@
         autoResize();
         updateLineNumbers();
 
-        // Sync line numbers scroll with editor scroll
-        if (lineNumbers) {
-            editor.addEventListener('scroll', function() {
-                lineNumbers.scrollTop = editor.scrollTop;
+        if (diffGutter) {
+            diffGutter.addEventListener('click', function(e) {
+                let el = e.target;
+                while (el && el !== diffGutter) {
+                    if (el.classList && el.classList.contains('diff-marker')) {
+                        vscode.postMessage({ type: 'openDiff' });
+                        return;
+                    }
+                    el = el.parentNode;
+                }
             });
         }
 
@@ -305,14 +315,57 @@
 
         const mirrorDivs = lineMirror.children;
         let numbersHtml = '';
+        const lineHeights = new Array(mirrorDivs.length);
         for (let i = 0; i < mirrorDivs.length; i++) {
             const top = mirrorDivs[i].offsetTop;
             const height = (i < mirrorDivs.length - 1)
                 ? mirrorDivs[i + 1].offsetTop - top
                 : mirrorDivs[i].offsetHeight;
+            lineHeights[i] = height;
             numbersHtml += '<div style="height:' + height + 'px">' + (i + 1) + '</div>';
         }
         lineNumbers.innerHTML = numbersHtml;
+        renderDiffGutter(lineHeights);
+    }
+
+    // Build a per-line stack of divs (same layout as line-numbers) so markers
+    // line up automatically as the wrapper scrolls.
+    function renderDiffGutter(lineHeights) {
+        if (!diffGutter) {
+            return;
+        }
+        const total = lineHeights.length;
+        // Bucket hunks by line for quick lookup.
+        const perLine = new Array(total);
+        const deletedAt = new Array(total);
+        for (const h of currentHunks) {
+            if (h.kind === 'deleted') {
+                const idx = Math.max(0, Math.min(total - 1, h.startLine - 1));
+                deletedAt[idx] = true;
+            } else {
+                const startIdx = Math.max(0, Math.min(total - 1, h.startLine - 1));
+                const endIdx = Math.max(0, Math.min(total - 1, h.endLine - 1));
+                for (let i = startIdx; i <= endIdx; i++) {
+                    perLine[i] = h.kind;
+                }
+            }
+        }
+        let html = '';
+        for (let i = 0; i < total; i++) {
+            const kind = perLine[i];
+            const cls = kind === 'added' ? 'diff-added'
+                : kind === 'modified' ? 'diff-modified'
+                : '';
+            const title = kind
+                ? (kind === 'added' ? 'Added — click to view diff' : 'Modified — click to view diff')
+                : '';
+            const clickable = kind || deletedAt[i] ? ' diff-marker' : '';
+            html += '<div class="diff-line ' + cls + clickable + '" style="height:' + lineHeights[i] + 'px"'
+                + (title ? ' title="' + title + '"' : '') + '>'
+                + (deletedAt[i] ? '<span class="diff-deleted-triangle" title="Deleted line(s) — click to view diff"></span>' : '')
+                + '</div>';
+        }
+        diffGutter.innerHTML = html;
     }
 
     function escapeHtml(text) {
@@ -363,6 +416,11 @@
 
             case 'saveError':
                 showNotification(message.message, 'error');
+                break;
+
+            case 'diff':
+                currentHunks = message.available ? (message.hunks || []) : [];
+                updateLineNumbers();
                 break;
         }
     });

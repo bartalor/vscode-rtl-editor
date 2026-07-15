@@ -116,6 +116,45 @@ body {
     box-sizing: border-box;
 }
 
+/* Diff gutter — git-style change markers between line numbers and the editor.
+   Uses the same per-line stacked-div layout as .line-numbers so tops align
+   automatically and the whole column scrolls together with the wrapper. */
+.diff-gutter {
+    width: 6px;
+    flex-shrink: 0;
+    background-color: var(--vscode-editorGutter-background, var(--vscode-editor-background));
+    padding: 16px 0; /* match editor top/bottom padding */
+    box-sizing: border-box;
+}
+
+.diff-line {
+    position: relative;
+    width: 100%;
+}
+
+.diff-marker {
+    cursor: pointer;
+}
+
+.diff-added {
+    background-color: var(--vscode-editorGutter-addedBackground, #587c0c);
+}
+
+.diff-modified {
+    background-color: var(--vscode-editorGutter-modifiedBackground, #0c7d9d);
+}
+
+.diff-deleted-triangle {
+    position: absolute;
+    top: 0;
+    left: -1px;
+    width: 0;
+    height: 0;
+    border-left: 4px solid transparent;
+    border-right: 4px solid transparent;
+    border-top: 4px solid var(--vscode-editorGutter-deletedBackground, #94151b);
+}
+
 /* Hidden mirror div to measure wrapped line heights */
 .line-mirror {
     position: absolute;
